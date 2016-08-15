@@ -84,6 +84,8 @@ import soot.jimple.spark.pag.AllocDotField;
 import soot.jimple.spark.pag.PAG;
 import soot.jimple.toolkits.annotation.nullcheck.NullnessAnalysis;
 import soot.jimple.toolkits.callgraph.ConstantArrayAnalysis.ArrayTypes;
+import soot.jimple.toolkits.callgraph.reflection.CallGraphBuilderBridge;
+import soot.jimple.toolkits.callgraph.reflection.ComposableReflectionHandlers;
 import soot.jimple.toolkits.reflection.ReflectionTraceInfo;
 import soot.options.CGOptions;
 import soot.options.Options;
@@ -147,12 +149,21 @@ public final class OnFlyCallGraphBuilder
 		ByteType.v(),
 		ShortType.v(),	
 	};
+	
+    private CallGraphBuilderBridge bridge = new CallGraphBuilderBridge() {
+		@Override
+		public void addEdge(SootMethod src, Stmt stmt, SootMethod tgt, Kind kind) {
+			OnFlyCallGraphBuilder.this.addEdge(src, stmt, tgt, kind);
+		}
+	};
+	
 	public class DefaultReflectionModel implements ReflectionModel {
 		
 	    protected CGOptions options = new CGOptions( PhaseOptions.v().getPhaseOptions("cg") );
 	    
 	    protected HashSet<SootMethod> warnedAlready = new HashSet<SootMethod>();
-
+	    protected ComposableReflectionHandlers handlers = ComposableReflectionHandlers.v();
+	    
 		@Override
 		public void classForName(SootMethod source, Stmt s) {
 	        List<Local> stringConstants = methodToStringConstants.get(source);
@@ -164,17 +175,23 @@ public final class OnFlyCallGraphBuilder
 	            String cls = ((StringConstant) className ).value;
 	            constantForName( cls, source, s );
 	        } else {
+	        	boolean handled = handlers.handleForNameCall(source, s, bridge);
 	            Local constant = (Local) className;
 	            if( options.safe_forname() ) {
-	                for (SootMethod tgt : EntryPoints.v().clinits()) {
-	                    addEdge( source, s, tgt, Kind.CLINIT );
-	                }
+	            	if(!handled) {
+		                for (SootMethod tgt : EntryPoints.v().clinits()) {
+		                    addEdge( source, s, tgt, Kind.CLINIT );
+		                }
+	            	}
 	            } else {
-	                for (SootClass cls : Scene.v().dynamicClasses()) {
-	                    for (SootMethod clinit : EntryPoints.v().clinitsOf(cls)) {
-	                        addEdge( source, s, clinit, Kind.CLINIT);
-	                    }
-	                }
+	            	if(!handled) {
+		                for (SootClass cls : Scene.v().dynamicClasses()) {
+		                    for (SootMethod clinit : EntryPoints.v().clinitsOf(cls)) {
+		                        addEdge( source, s, clinit, Kind.CLINIT);
+		                    }
+		                }
+	            	}
+	                
 	                VirtualCallSite site = new VirtualCallSite( s, source, null, null, Kind.CLINIT );
 	                List<VirtualCallSite> sites = stringConstToSites.get(constant);
 	                if (sites == null) {
@@ -188,6 +205,9 @@ public final class OnFlyCallGraphBuilder
 
 		@Override
 		public void classNewInstance(SootMethod source, Stmt s) {
+			if(handlers.handleNewInstanceCall(source, s, bridge)) {
+				return;
+			}
 			if( options.safe_newinstance() ) {
 				for (SootMethod tgt : EntryPoints.v().inits()) {
 					addEdge( source, s, tgt, Kind.NEWINSTANCE );
@@ -206,11 +226,14 @@ public final class OnFlyCallGraphBuilder
 							" graph will be incomplete!"+
 					" Use safe-newinstance option for a conservative result." );
 				}
-			} 
+			}
 		}
 
 		@Override
 		public void contructorNewInstance(SootMethod source, Stmt s) {
+			if(handlers.handleConstructorNewInstanceCall(source, s, bridge)) {
+				return;
+			}
 			if( options.safe_newinstance() ) {
 				for (SootMethod tgt : EntryPoints.v().allInits()) {
 					addEdge( source, s, tgt, Kind.NEWINSTANCE );
@@ -234,6 +257,9 @@ public final class OnFlyCallGraphBuilder
 
 		@Override
 		public void methodInvoke(SootMethod container, Stmt invokeStmt) {
+			if(handlers.handleInvokeCall(container, invokeStmt, bridge)) {
+				return;
+			}
 			if( !warnedAlready(container) ) {
 				if( options.verbose() ) {
 					G.v().out.println( "Warning: call to "+
@@ -677,10 +703,7 @@ public final class OnFlyCallGraphBuilder
 					return false;
 				}
 				for(int i = 0; i < m.getParameterCount(); i++) {
-					if(at.possibleTypes[i].isEmpty()) {
-						continue;
-					}
-					if(!isReflectionCompatible(m.getParameterType(i), at.possibleTypes[i])) {
+					if(!isReflectionCompatible(fh, m.getParameterType(i), at.possibleTypes[i])) {
 						return false;
 					}
 				}
@@ -690,7 +713,7 @@ public final class OnFlyCallGraphBuilder
 		};
 	}
 	
-	private PrimType[] narrowings(PrimType f) {
+	private static PrimType[] narrowings(PrimType f) {
 		if(f instanceof IntType) {
 			return INT_NARROWINGS;
 		} else if(f instanceof ShortType) {
@@ -712,7 +735,7 @@ public final class OnFlyCallGraphBuilder
 		}
 	}
 
-	private boolean isReflectionCompatible(Type paramType, Set<Type> reachingTypes) {
+	public static boolean isReflectionCompatible(FastHierarchy fh, Type paramType, Set<Type> reachingTypes) {
 		/* 
 		 * attempting to pass in a null will match any type (although attempting to pass it
 		 * to a primitive arg will give an NPE)
@@ -827,7 +850,7 @@ public final class OnFlyCallGraphBuilder
 				}
 				List<Type> t = n.getParameterTypes();
 				for(Type pTy : t) {
-					if(!isReflectionCompatible(pTy, reachingTypes)) {
+					if(!isReflectionCompatible(fh, pTy, reachingTypes)) {
 						return false;
 					}
 				}
@@ -1056,6 +1079,7 @@ public final class OnFlyCallGraphBuilder
             return;
         }
         Body b = m.retrieveActiveBody();
+        ComposableReflectionHandlers.v().handleNewMethod(m, bridge);
         getImplicitTargets( m );
         findReceivers(m, b);
     }

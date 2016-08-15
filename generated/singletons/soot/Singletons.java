@@ -2269,4 +2269,18 @@ public class Singletons {
     	instance_soot_jimple_spark_internal_CompleteAccessibility = null;
     }
 
+    private soot.jimple.toolkits.callgraph.reflection.ComposableReflectionHandlers instance_soot_jimple_toolkits_callgraph_reflection_ComposableReflectionHandlers;
+    public soot.jimple.toolkits.callgraph.reflection.ComposableReflectionHandlers soot_jimple_toolkits_callgraph_reflection_ComposableReflectionHandlers() {
+        if( instance_soot_jimple_toolkits_callgraph_reflection_ComposableReflectionHandlers == null ) {
+	       	synchronized (this) {
+		        if( instance_soot_jimple_toolkits_callgraph_reflection_ComposableReflectionHandlers == null )
+	        		instance_soot_jimple_toolkits_callgraph_reflection_ComposableReflectionHandlers = new soot.jimple.toolkits.callgraph.reflection.ComposableReflectionHandlers( g );
+	       	}
+       	}
+        return instance_soot_jimple_toolkits_callgraph_reflection_ComposableReflectionHandlers;
+    }
+    protected void release_soot_jimple_toolkits_callgraph_reflection_ComposableReflectionHandlers() {
+    	instance_soot_jimple_toolkits_callgraph_reflection_ComposableReflectionHandlers = null;
+    }
+
 }
