@@ -38,6 +38,25 @@ import soot.options.JBOptions;
  * This is a specific one for the very messy jb phase. */
 public class JimpleBodyPack extends BodyPack
 {
+	private static final Set<String> standardPacks = new HashSet<String>();
+	static {
+		standardPacks.add("jb.tt");
+		standardPacks.add("jb.uce");
+		standardPacks.add("jb.ls");
+		standardPacks.add("jb.a");
+		standardPacks.add("jb.ule");
+		standardPacks.add("jb.tr");
+		standardPacks.add("jb.ulp");
+		standardPacks.add("jb.lns");
+		standardPacks.add("jb.cp");
+		standardPacks.add("jb.dae");
+		standardPacks.add("jb.cp-ule");
+		standardPacks.add("jb.lp");
+		standardPacks.add("jb.ne");
+		standardPacks.add("jb.uce");
+		standardPacks.add("jb.lns");
+	}
+	
     public JimpleBodyPack() {
         super("jb");
     }
@@ -92,6 +111,13 @@ public class JimpleBodyPack extends BodyPack
         if (PhaseOptions.getBoolean(opts, "stabilize-local-names")) {
         	PhaseOptions.v().setPhaseOption("jb.lns", "sort-locals:true");
         	PackManager.v().getTransform( "jb.lns" ).apply( b );
+        }
+        
+        for(Transform t : this.opts) {
+        	if(standardPacks.contains(t.getPhaseName())) {
+        		continue;
+        	}
+        	t.apply(b);
         }
         
         if(Options.v().time())
