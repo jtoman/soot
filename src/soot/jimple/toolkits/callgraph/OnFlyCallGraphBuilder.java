@@ -21,14 +21,17 @@ package soot.jimple.toolkits.callgraph;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import soot.AnySubType;
 import soot.ArrayType;
 import soot.Body;
 import soot.BooleanType;
@@ -594,6 +597,82 @@ public final class OnFlyCallGraphBuilder
 		}
 	}
     
+    private class TypeIterable implements Iterable<Type> {
+    	private Iterable<Type> wrapped;
+		public TypeIterable(Iterable<Type> wrapped) {
+			this.wrapped = wrapped;
+		}
+
+		private Collection<SootClass> findAllSubtypes(SootClass cls) {
+			LinkedList<SootClass> worklist = new LinkedList<SootClass>();
+			Collection<SootClass> toReturn = new HashSet<SootClass>();
+			toReturn.add(cls);
+			worklist.add(cls);
+			while(!worklist.isEmpty()) {
+				SootClass l = worklist.removeFirst();
+				if(!toReturn.add(l)) {
+					continue;
+				}
+				worklist.addAll(fh.getSubclassesOf(cls));
+			}
+			return toReturn;
+		}
+
+		@Override
+		public Iterator<Type> iterator() {
+			final Iterator<Type> outerIt = wrapped.iterator(); 
+			return new Iterator<Type>() {
+				Iterator<SootClass> inner = null;
+				Type next = null;
+				
+				private void findNext() {
+					if(inner != null && inner.hasNext()) {
+						next = inner.next().getType();
+						return;
+					}
+					if(!outerIt.hasNext()) {
+						next = null;
+						return;
+					}
+					Type ty = outerIt.next();
+					if(ty instanceof AnySubType) {
+						AnySubType anySubType = (AnySubType) ty;
+						RefType base = anySubType.getBase();
+						inner = findAllSubtypes(base.getSootClass()).iterator();
+						findNext();
+						return;
+					} else if(ty instanceof ArrayType) {
+						next = ty;
+					} else {
+						assert ty instanceof RefType;
+						next = ty;
+					}
+				}
+				
+				{
+					findNext();
+				}
+				
+				@Override
+				public boolean hasNext() {
+					return next != null;
+				}
+
+				@Override
+				public Type next() {
+					Type toRet = next;
+					findNext();
+					return toRet;
+				}
+
+				@Override
+				public void remove() {
+					throw new UnsupportedOperationException();
+				}
+			};
+		}
+    }
+    
     private void resolveInvoke(List<InvokeCallSite> list) {
 		for(InvokeCallSite ics : list) {
 			Set<Type> s = reachingBaseTypes.get(ics.base());
@@ -609,7 +688,10 @@ public final class OnFlyCallGraphBuilder
 			boolean mustBeNull = ics.nullnessCode() == InvokeCallSite.MUST_BE_NULL;
 			//  if the arg array may be null and we haven't seen a size or type yet, then generate nullary methods
 			if(mustBeNull || (ics.nullnessCode() == InvokeCallSite.MAY_BE_NULL && (!invokeArgsToSize.containsKey(ics.argArray()) || !reachingArgTypes.containsKey(ics.argArray())))) {
-				for(Type bType : s) {
+				for(Type bType : new TypeIterable(s)) {
+					if(bType instanceof ArrayType) {
+						continue;
+					}
 					assert bType instanceof RefType;
 					SootClass baseClass = ((RefType) bType).getSootClass();
 					assert !baseClass.isInterface();
@@ -660,7 +742,10 @@ public final class OnFlyCallGraphBuilder
     
     private void resolveStaticTypes(Set<Type> s, InvokeCallSite ics) {
     	ArrayTypes at = ics.reachingTypes();
-		for(Type bType : s) {
+		for(Type bType : new TypeIterable(s)) {
+			if(bType instanceof ArrayType) {
+				continue;
+			}
 			SootClass baseClass = ((RefType)bType).getSootClass();
 			Iterator<SootMethod> mIt = getPublicMethodIterator(baseClass, at);
 			while(mIt.hasNext()) {
