@@ -43,6 +43,7 @@ import soot.jimple.DefinitionStmt;
 import soot.jimple.FieldRef;
 import soot.jimple.IdentityRef;
 import soot.jimple.ParameterRef;
+import soot.jimple.StaticFieldRef;
 import soot.jimple.Stmt;
 import soot.jimple.ThisRef;
 import soot.jimple.toolkits.callgraph.CallGraph;
@@ -271,6 +272,8 @@ public class LocalMustAliasAnalysis extends ForwardFlowAnalysis<Unit,HashMap<Val
                 } else if(rhs instanceof ParameterRef) {
                 	//ParameterRef can never change; assign unique number
                 	out.put(lhs, parameterRefNumber((ParameterRef) rhs));
+                } else if(rhs instanceof StaticFieldRef && ((StaticFieldRef)rhs).getField().isFinal()) {
+                	out.put(lhs, numberOfRhs(new EquivalentValue(rhs)));
                 } else {
                 	//assign number for expression
                     out.put(lhs, numberOfRhs(rhs));
