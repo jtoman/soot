@@ -379,6 +379,9 @@ public class SourceLocator
                 if (tokenizer.hasMoreTokens())
                     path = path + File.separatorChar;
             }
+            if(!new File(path).exists()) {
+            	continue;
+            }
             l = getClassesUnder(path);
             for (String string : l)
 				set.add(str + "." + string);

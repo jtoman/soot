@@ -233,8 +233,8 @@ public class SootResolver {
 							+ className
 							+ " (is your soot-class-path set properly?)" + suffix);
 				} else {
-					G.v().out.println("Warning: " + className
-							+ " is a phantom class!");
+//					G.v().out.println("Warning: " + className
+//							+ " is a phantom class!");
 					sc.setPhantomClass();
 					classToTypesSignature.put(sc, Collections.<Type> emptyList());
 					classToTypesHierarchy.put(sc, Collections.<Type> emptyList());

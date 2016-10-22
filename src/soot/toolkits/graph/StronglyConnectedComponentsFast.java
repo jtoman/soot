@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 
+import soot.toolkits.scalar.Pair;
+
 /**
  * Identifies and provides an interface to query the strongly-connected
  * components of DirectedGraph instances.
@@ -71,7 +73,7 @@ public class StronglyConnectedComponentsFast<N> {
 				// because it will blow up our stack space. The cut-off value when
 				// to switch is more or less random, though.
 				if (g.size() > 1000)
-					iterate(head);
+					iterateCorrect(head);
 				else
 					recurse(head);
 			}
@@ -116,6 +118,57 @@ public class StronglyConnectedComponentsFast<N> {
 				N n = scc.get(0);
 				if (g.getSuccsOf(n).contains(n))
 					trueComponentList.add(scc);
+			}
+		}
+	}
+	
+	protected void iterateCorrect(N x) {
+		List<Pair<Integer,N>> workStack = new ArrayList<Pair<Integer,N>>();
+		workStack.add(new Pair<Integer, N>(-1, x));
+		outer_loop: while (!workStack.isEmpty()) {
+			Pair<Integer, N> p = workStack.remove(workStack.size() - 1);
+			N v = p.getO2();
+			int startIdx = p.getO1();
+			List<N> l = g.getSuccsOf(v);
+			int lowLinkForNodeV;
+			if(startIdx == -1) { 
+				indexForNode.put(v, index);
+				lowlinkForNode.put(v, lowLinkForNodeV = index);
+				index++;
+				s.push(v);
+				startIdx = 0;
+			} else {
+				lowLinkForNodeV = Math.min(lowlinkForNode.get(v), lowlinkForNode.get(l.get(startIdx)));
+				lowlinkForNode.put(v, lowLinkForNodeV);
+				startIdx++;
+			}
+			for(int i = startIdx; i < l.size(); i++) {
+				N succ = l.get(i);
+				Integer indexForNodeSucc = indexForNode.get(succ);
+				if (indexForNodeSucc == null) {
+					workStack.add(new Pair<Integer, N>(i, v));
+					workStack.add(new Pair<Integer, N>(-1, succ));
+					continue outer_loop;
+				} else if(s.contains(succ)) {
+					lowlinkForNode.put(v, lowLinkForNodeV = Math.min(lowLinkForNodeV, indexForNodeSucc));
+				}
+			}
+			
+			if (lowLinkForNodeV == indexForNode.get(v).intValue()) {
+				List<N> scc = new ArrayList<N>();
+				N v2;
+				do {
+					v2 = s.pop();
+					scc.add(v2);
+				} while (v != v2);
+				componentList.add(scc);
+				if (scc.size() > 1) {
+					trueComponentList.add(scc);
+				} else {
+					N n = scc.get(0);
+					if (g.getSuccsOf(n).contains(n))
+						trueComponentList.add(scc);
+				}
 			}
 		}
 	}

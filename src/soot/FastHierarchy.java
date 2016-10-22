@@ -29,6 +29,9 @@ import java.util.Map;
 import java.util.Set;
 
 import soot.jimple.SpecialInvokeExpr;
+import soot.jimple.toolkits.typing.fast.Integer127Type;
+import soot.jimple.toolkits.typing.fast.Integer1Type;
+import soot.jimple.toolkits.typing.fast.Integer32767Type;
 import soot.util.ConcurrentHashMultiMap;
 import soot.util.MultiMap;
 
@@ -78,7 +81,6 @@ public class FastHierarchy
      * a pair of numbers giving a preorder and postorder ordering of classes
      * in the inheritance tree. */
     protected Map<SootClass, Interval> classToInterval = new HashMap<SootClass, Interval>();
-
     protected Scene sc;
 
     protected class Interval {
@@ -263,7 +265,46 @@ public class FastHierarchy
                     return true;
                 return false;
             } else return false;
-        } else
+        /*
+         Widening for primitives, as specified by the JLS
+         
+	        byte to short, int, long, float, or double
+		    short to int, long, float, or double
+		    char to int, long, float, or double
+		    int to long, float, or double
+		    long to float or double
+		    float to double
+         */
+        } else if(child instanceof PrimType) {
+        	if(!(parent instanceof PrimType)) {
+        		return false;
+        	}
+        	if(child instanceof Integer127Type || child instanceof Integer32767Type || child instanceof Integer1Type || 
+    			parent instanceof Integer127Type || parent instanceof Integer32767Type || parent instanceof Integer1Type) {
+        		return false;
+        	}
+        	if(child == BooleanType.v() || child == CharType.v()) {
+        		return false;
+        	}
+        	assert parent instanceof ShortType || parent instanceof IntType || 
+        		parent instanceof LongType || parent instanceof FloatType || parent instanceof DoubleType ||
+        		parent instanceof ByteType;
+        	if(child == ByteType.v()) {
+	        	return true;
+	        } else if(child == ShortType.v()) {
+	        	return parent != ByteType.v();
+	        } else if(child == IntType.v()) {
+	        	return parent == FloatType.v() || parent == LongType.v() || parent == DoubleType.v();
+	        } else if(child == LongType.v()) {
+	        	return parent == FloatType.v() || parent == DoubleType.v();
+	        } else if(child == FloatType.v()) {
+	        	return parent == DoubleType.v();
+	        } else if(child == DoubleType.v()) {
+	        	return false;
+	        } else {
+	        	throw new RuntimeException();
+	        }
+        } else 
         	return false;
     }
 

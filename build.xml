@@ -371,7 +371,7 @@
 
     </target>
 
-	<target name="fulljar" depends="classesjar"
+	<target name="fulljar" depends="classesjar,sourcejar"
 		description="Build the complete jar file sootclasses-(version).jar that includes Soot's class files and its required libraries, in the release subdirectory (usually lib).">
     	<mkdir dir="META-INF"/>
 
@@ -393,6 +393,7 @@
 			<zipfileset src="${slf4j-api.jar}"/>
        		<zipfileset src="${slf4j-simple.jar}"/>
        		<zipfileset src="${guava.jar}"/>
+			<zipfileset src="${release.loc}/sootsources-${soot.version}.jar"/>
         </jar>
 		<delete dir="META-INF"/>
     </target>

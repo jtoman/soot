@@ -159,7 +159,7 @@ public class Main {
 			throw e;
 		} catch (RuntimeException e) {
 			e.printStackTrace();
-
+			/*
 			ByteArrayOutputStream bos = new ByteArrayOutputStream();
 			e.printStackTrace(new PrintStream(bos));
 			String stackStraceString = bos.toString();
@@ -191,10 +191,11 @@ public class Main {
 				sb.append("    "+TRACKER_URL+"title="+encode(title, "UTF-8")+"&body="+encode(body, "UTF-8")+"\n");
 				sb.append("    Please be as precise as possible when giving us\n");
 				sb.append("    information on how to reproduce the problem. Thanks!");
-
+				
 				System.err.println(sb);
 			} catch (UnsupportedEncodingException e1) {
 			}
+			*/
 		}
 	}
 

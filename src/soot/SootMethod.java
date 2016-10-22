@@ -574,7 +574,7 @@ public class SootMethod
 
         // Again, memory-usage tweak depending on JDK implementation due
         // to Michael Pan.
-        return buffer.toString().intern();
+        return buffer.toString();//.intern();
     }
 
     /**
@@ -614,7 +614,7 @@ public class SootMethod
         }
         buffer.append(")");
 
-        return buffer.toString().intern();
+        return buffer.toString(); //.intern();
     }
 
     private NumberedString subsignature;

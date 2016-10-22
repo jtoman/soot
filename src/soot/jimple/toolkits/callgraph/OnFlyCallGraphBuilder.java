@@ -152,6 +152,12 @@ public final class OnFlyCallGraphBuilder
 		ByteType.v(),
 		ShortType.v(),	
 	};
+	private CallGraphBuilderBridge bridge = new CallGraphBuilderBridge() {
+		@Override
+		public void addEdge(SootMethod src, Stmt stmt, SootMethod tgt, Kind kind) {
+			OnFlyCallGraphBuilder.this.addEdge(src, stmt, tgt, kind);
+		}
+	};
 	
 	public class DefaultReflectionModel implements ReflectionModel {
 		
@@ -159,12 +165,6 @@ public final class OnFlyCallGraphBuilder
 	    
 	    protected HashSet<SootMethod> warnedAlready = new HashSet<SootMethod>();
 	    protected ComposableReflectionHandlers handlers = ComposableReflectionHandlers.v();
-	    private CallGraphBuilderBridge bridge = new CallGraphBuilderBridge() {
-			@Override
-			public void addEdge(SootMethod src, Stmt stmt, SootMethod tgt, Kind kind) {
-				OnFlyCallGraphBuilder.this.addEdge(src, stmt, tgt, kind);
-			}
-		};
 	    
 		@Override
 		public void classForName(SootMethod source, Stmt s) {
@@ -747,7 +747,7 @@ public final class OnFlyCallGraphBuilder
 				}
 				assert reachingTypes != null && invokeArgsToSize.containsKey(ics.argArray());
 				Set<Integer> methodSizes = invokeArgsToSize.get(ics.argArray());
-				for(Type bType : s) {
+				for(Type bType : new TypeIterable(s)) {
 					assert bType instanceof RefLikeType;
 					// we do not handle static methods or array reflection
 					if(bType instanceof NullType || bType instanceof ArrayType) {
@@ -1166,6 +1166,7 @@ public final class OnFlyCallGraphBuilder
             return;
         }
         Body b = m.retrieveActiveBody();
+        ComposableReflectionHandlers.v().handleNewMethod(m, bridge);
         getImplicitTargets( m );
         findReceivers(m, b);
     }

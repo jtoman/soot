@@ -127,6 +127,9 @@ public class HashChain<E> extends AbstractCollection<E> implements Chain<E> {
 	}
 
 	public boolean contains(Object o) {
+		if(o == null) {
+			return false;
+		}
 		return map.containsKey(o);
 	}
 

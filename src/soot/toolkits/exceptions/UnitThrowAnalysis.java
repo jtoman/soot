@@ -406,6 +406,8 @@ public class UnitThrowAnalysis extends AbstractThrowAnalysis {
 	ThrowableSet getResult() {
 	    return result;
 	}
+	
+	public UnitSwitch() { }
 
 	@Override
 	public void caseReturnVoidInst(ReturnVoidInst i) {

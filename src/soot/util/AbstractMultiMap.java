@@ -30,4 +30,21 @@ public abstract class AbstractMultiMap<K, V> implements MultiMap<K, V> {
 		return set.contains(value);
 	}
 
+    public String toString() {
+    	StringBuilder sb = new StringBuilder();
+    	sb.append("{");
+    	boolean first = true;
+    	for(K key : this.keySet()) {
+    		if(first) {
+    			first = false;
+    		} else {
+    			sb.append(',');
+    		}
+    		sb.append(key.toString());
+    		sb.append("=");
+    		sb.append(this.get(key).toString());
+    	}
+    	sb.append("}");
+    	return sb.toString();
+    }
 }
