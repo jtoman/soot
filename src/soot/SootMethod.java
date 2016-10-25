@@ -217,6 +217,7 @@ public class SootMethod
 
     /** Sets the name of this method. */
     public void setName(String name) {
+    	checkFrozen();
         boolean wasDeclared = isDeclared;
         SootClass oldDeclaringClass = declaringClass;
         if( wasDeclared ) oldDeclaringClass.removeMethod(this);
@@ -235,6 +236,7 @@ public class SootMethod
     /** Sets the modifiers of this method.
      * @see soot.Modifier */
     public void setModifiers(int modifiers) {
+    	checkFrozen();
         if ((declaringClass != null) && (!declaringClass.isApplicationClass()))
             throw new RuntimeException("Cannot set modifiers of a method from a non-app class!");
         this.modifiers = modifiers;
@@ -247,6 +249,7 @@ public class SootMethod
 
     /** Sets the return type of this method. */
     public void setReturnType(Type t) {
+    	checkFrozen();
         boolean wasDeclared = isDeclared;
         SootClass oldDeclaringClass = declaringClass;
         if( wasDeclared ) oldDeclaringClass.removeMethod(this);
@@ -255,6 +258,12 @@ public class SootMethod
             Scene.v().getSubSigNumberer().findOrAdd(getSubSignature());
         if( wasDeclared) oldDeclaringClass.addMethod(this);
     }
+
+	private void checkFrozen() {
+		if(frozen) {
+    		throw new IllegalStateException("Tried to modify frozen method: " + this);
+    	}
+	}
 
     /** Returns the number of parameters taken by this method. */
     public int getParameterCount() {
@@ -277,6 +286,7 @@ public class SootMethod
      * Changes the set of parameter types of this method.
      */
     public void setParameterTypes( List<Type> l ) {
+    	checkFrozen();
         boolean wasDeclared = isDeclared;
         SootClass oldDeclaringClass = declaringClass;
         if( wasDeclared ) oldDeclaringClass.removeMethod(this);
@@ -401,6 +411,7 @@ public class SootMethod
     }
 
     public void setExceptions(List<SootClass> exceptions) {
+    	checkFrozen();
     	if (exceptions != null && !exceptions.isEmpty()) {
 	        this.exceptions = new ArrayList<SootClass>(exceptions);
 	    }
@@ -545,6 +556,9 @@ public class SootMethod
         in bytecode (eg. [Ljava/lang/Object instead of java.lang.Object[]).
      */
     public String getBytecodeSignature() {
+    	if(frozen && bytecodeSignatureCache != null) {
+    		return bytecodeSignatureCache;
+    	}
         String name = getName();
 
         StringBuffer buffer = new StringBuffer();
@@ -553,7 +567,9 @@ public class SootMethod
         buffer.append(name);
         buffer.append(AbstractJasminClass.jasminDescriptorOf(makeRef()));
         buffer.append(">");
-
+        if(frozen) {
+        	return bytecodeSignatureCache = buffer.toString().intern();
+        }
         return buffer.toString().intern();
     }
 
@@ -561,7 +577,13 @@ public class SootMethod
         Returns the Soot signature of this method.  Used to refer to methods unambiguously.
      */
     public String getSignature() {
-        return getSignature(getDeclaringClass(), getName(), getParameterTypes(), getReturnType());
+    	if(frozen && signatureCache != null) {
+    		return signatureCache;
+    	}
+    	if(frozen) {
+    		return signatureCache = getSignature(getDeclaringClass(), getName(), getParameterTypes(), getReturnType());
+    	}
+    	return getSignature(getDeclaringClass(), getName(), getParameterTypes(), getReturnType());
     }
     
     public static String getSignature(SootClass cl, String name, List<Type> params, Type returnType) {
@@ -581,10 +603,15 @@ public class SootMethod
         Returns the Soot subsignature of this method.  Used to refer to methods unambiguously.
      */
     public String getSubSignature() {
+    	if(frozen && subSignatureCache != null) {
+    		return subSignatureCache;
+    	}
         String name = getName();
         List<Type> params = getParameterTypes();
         Type returnType = getReturnType();
-
+        if(frozen) {
+        	return subSignatureCache = getSubSignatureImpl(name, params, returnType);
+        }
         return getSubSignatureImpl(name, params, returnType);
     }
 
@@ -768,7 +795,10 @@ public class SootMethod
      *  (before the {}'s containing the code for representation.)
      */
     public String getDeclaration() {
-        StringBuffer buffer = new StringBuffer();
+    	if(frozen && declarationCache != null) {
+    		return declarationCache;
+    	}
+        StringBuilder buffer = new StringBuilder();
 
         // modifiers
         StringTokenizer st =
@@ -818,8 +848,11 @@ public class SootMethod
                 }
             }
         }
-
-        return buffer.toString().intern();
+        if(frozen) {
+        	return declarationCache = buffer.toString().intern();
+        } else {
+        	return buffer.toString().intern();
+        }
     }
     public final int getNumber() {
         return number;
@@ -828,6 +861,13 @@ public class SootMethod
         this.number = number;
     }
     private int number = 0;
+    
+	private boolean frozen = false;
+	private String declarationCache = null;
+	private String subSignatureCache = null;
+	private String signatureCache = null;
+	private String bytecodeSignatureCache = null;
+	
     public SootMethod method() { return this; }
     public Context context() { return null; }
     public SootMethodRef makeRef() {
@@ -851,5 +891,16 @@ public class SootMethod
     	} 
     	return line;
     }
+    
+   public void freeze() {
+	   this.frozen = true;
+   }
    
+   public void unfreeze() {
+	   this.subSignatureCache = null;
+	   this.bytecodeSignatureCache = null;
+	   this.declarationCache = null;
+	   this.bytecodeSignatureCache = null;
+	   this.frozen = false;
+   }
 }
